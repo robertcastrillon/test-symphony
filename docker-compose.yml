@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chronotrack}
       POSTGRES_DB: ${POSTGRES_DB:-chronotrack}
     ports:
-      - "5432:5432"
+      - "5436:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -24,7 +24,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8003:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-chronotrack}:${POSTGRES_PASSWORD:-chronotrack}@db:5432/${POSTGRES_DB:-chronotrack}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
@@ -41,7 +41,7 @@ services:
     image: node:20-alpine
     restart: unless-stopped
     ports:
-      - "5173:5173"
+      - "5177:5173"
     working_dir: /app
     volumes:
       - ./apps/web:/app

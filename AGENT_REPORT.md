@@ -1,52 +1,47 @@
-## Quality Check Report — ENG-93: AUTH-02: Registration & account creation
+## Deploy Report — ENG-93: AUTH-02: Registration & account creation
 
-NEXT_STATE: Ready to Deploy
+NEXT_STATE: Staging
 
-**Branch:** `eng-93`
-**PR:** https://github.com/robertcastrillon/test-symphony/pull/1
-**Routes to:** Ready to Deploy (no UI to validate — test evidence below)
+**Deployed at:** 2026-03-22 18:02 UTC
+**Branch merged:** `eng-93` → `develop` (via PR #1)
+**PR:** Merged
 
-### Test pyramid results
+### Staging access
 
-| Level | Check | Result |
-|-------|-------|--------|
-| 1 | Lint (ruff) | PASS |
-| 1 | Format (ruff format) | PASS — 29 files unchanged |
-| 1 | Security (bandit) | PASS — no issues found |
-| 1 | Secrets detection | PASS — no hardcoded secrets |
-| 2 | Unit tests | 11 passed, 0 failed |
-| 2 | Coverage | 83% (324 stmts, 56 missed) |
-| 3 | Integration tests | N/A |
-| 4 | BDD scenarios | N/A |
-| 5-6 | E2E + Smoke | N/A — non-UI ticket |
+| Service | URL | Status |
+|---------|-----|--------|
+| API | http://localhost:8003 | Running |
+| API docs | http://localhost:8003/docs | Available |
+| Web app | N/A (web frontend is U6, parallel unit) | — |
 
-### QA sign-off (automated)
+### Credentials
+- Email: test@example.com
+- Password: password123
 
-All static analysis checks passed with zero issues. All 11 unit tests passed on the first run with no fixes required. Coverage is 83% overall, exceeding the 80% gate. The auth_service.py module shows lower branch coverage because the async DB paths execute in the test environment through the fixture-injected session and the service logic is exercised via the HTTP client tests rather than direct unit calls — the route-level tests provide functional coverage of all paths (register, login, refresh, /me, error cases).
+### Smoke test results
 
-### Issues found during QA
+| Check | Result |
+|-------|--------|
+| Health endpoint `GET /api/v1/health` | `{"status":"ok","version":"1.0.0"}` PASS |
+| `POST /api/v1/auth/register` (new user) | HTTP 201 + JWT tokens PASS |
+| `POST /api/v1/auth/register` (duplicate email) | HTTP 409 PASS |
+| `POST /api/v1/auth/login` (valid credentials) | HTTP 200 + JWT tokens PASS |
+| Alembic migration `0001_initial_schema` | Applied successfully PASS |
 
-No issues found. The codebase was already clean:
+### What to verify in staging
 
-- `ruff check` reported "All checks passed!" with no fixes needed.
-- `ruff format` left all 29 files unchanged.
-- `bandit` produced no output (no security issues at medium+ severity).
-- No hardcoded secrets detected.
-- bcrypt is correctly pinned to `4.0.1` in `pyproject.toml`.
-- Tests use async test client (`httpx.AsyncClient` with `ASGITransport`) as required.
-- `pytest-asyncio` is configured with `asyncio_mode = "auto"` — all tests are async-native.
+1. `POST /api/v1/auth/register` with `{"email":"test@example.com","password":"password123","name":"Test User"}` returns HTTP 201 with `access_token` and `refresh_token`
+2. `POST /api/v1/auth/login` with same credentials returns HTTP 200 with token pair
+3. `POST /api/v1/auth/register` with same email returns HTTP 409
+4. `POST /api/v1/auth/refresh` with a valid refresh token from step 1/2 returns new token pair (HTTP 200)
+5. `GET /api/v1/health` returns `{"status":"ok","version":"1.0.0"}`
+6. API docs available at http://localhost:8003/docs for interactive exploration
 
-### Test coverage breakdown (notable files)
+### Deployment notes
 
-| File | Coverage |
-|------|----------|
-| app/core/security.py | 100% |
-| app/routers/auth.py | 100% |
-| app/models/user.py | 100% |
-| app/core/config.py | 100% |
-| app/schemas/auth.py | 92% |
-| app/core/exceptions.py | 84% |
-| app/main.py | 85% |
-| app/core/dependencies.py | 80% |
-| app/db/session.py | 42% (production DB session path, not exercised in SQLite tests) |
-| app/services/auth_service.py | 38% (coverage tool undercounts async service paths exercised via HTTP client) |
+- Docker Compose deployed on localhost with non-conflicting ports: API on `8003`, DB on `5436` (other eng workspaces occupy 8000–8002 and 5433–5435)
+- Added `email-validator>=2.0.0` and `fastapi[standard]` to `pyproject.toml` — required for Pydantic `EmailStr` validation at runtime
+- Alembic migration `0001_initial_schema` applied: created all 5 tables (`users`, `clients`, `projects`, `sessions`, `invoices`) with FK constraints and indexes
+- JWT secrets supplied via environment variables for staging
+- Web service (`apps/web`) is not yet built — it is part of U6 (a parallel frontend unit, not a U1 dependency)
+- Bot service requires `TELEGRAM_TOKEN` env var and is gated behind a Docker Compose profile (`--profile bot`)
