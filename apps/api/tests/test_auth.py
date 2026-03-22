@@ -51,9 +51,7 @@ async def test_login_nonexistent_email(client):
 @pytest.mark.asyncio
 async def test_refresh_success(client, registered_user):
     refresh_token = registered_user["refresh_token"]
-    response = await client.post(
-        "/api/v1/auth/refresh", json={"refresh_token": refresh_token}
-    )
+    response = await client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
@@ -74,9 +72,7 @@ async def test_refresh_token_rotation(client, registered_user):
     """Old refresh token should be invalidated after rotation."""
     old_refresh = registered_user["refresh_token"]
     await client.post("/api/v1/auth/refresh", json={"refresh_token": old_refresh})
-    response = await client.post(
-        "/api/v1/auth/refresh", json={"refresh_token": old_refresh}
-    )
+    response = await client.post("/api/v1/auth/refresh", json={"refresh_token": old_refresh})
     assert response.status_code == 401
 
 

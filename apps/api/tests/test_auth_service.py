@@ -1,4 +1,5 @@
 """Direct service tests to ensure coverage of async service functions."""
+
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool

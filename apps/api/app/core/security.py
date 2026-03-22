@@ -31,9 +31,7 @@ def create_refresh_token(data: dict[str, Any]) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(days=settings.jwt_refresh_token_expire_days)
     to_encode.update({"exp": expire, "type": "refresh", "jti": str(uuid.uuid4())})
-    return jwt.encode(
-        to_encode, settings.jwt_refresh_secret_key, algorithm=settings.jwt_algorithm
-    )
+    return jwt.encode(to_encode, settings.jwt_refresh_secret_key, algorithm=settings.jwt_algorithm)
 
 
 def decode_access_token(token: str) -> dict[str, Any]:
@@ -41,6 +39,4 @@ def decode_access_token(token: str) -> dict[str, Any]:
 
 
 def decode_refresh_token(token: str) -> dict[str, Any]:
-    return jwt.decode(
-        token, settings.jwt_refresh_secret_key, algorithms=[settings.jwt_algorithm]
-    )
+    return jwt.decode(token, settings.jwt_refresh_secret_key, algorithms=[settings.jwt_algorithm])
