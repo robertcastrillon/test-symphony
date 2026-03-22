@@ -1,0 +1,31 @@
+version: "3.9"
+
+services:
+  db-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: chronotrack_test
+      POSTGRES_PASSWORD: chronotrack_test
+      POSTGRES_DB: chronotrack_test
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chronotrack_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api-test:
+    build: ./apps/api
+    depends_on:
+      db-test:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://chronotrack_test:chronotrack_test@db-test:5432/chronotrack_test
+      JWT_SECRET_KEY: test-secret-key
+      JWT_REFRESH_SECRET_KEY: test-refresh-secret-key
+      JWT_ALGORITHM: HS256
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 15
+      JWT_REFRESH_TOKEN_EXPIRE_DAYS: 30
+      DEBUG: "false"
+    command: pytest --cov=app --cov-report=term-missing --cov-fail-under=75 -q

@@ -1,0 +1,76 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: chronotrack
+      POSTGRES_PASSWORD: chronotrack
+      POSTGRES_DB: chronotrack
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chronotrack"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chronotrack_net
+
+  api:
+    build: ./apps/api
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://chronotrack:chronotrack@db:5432/chronotrack
+      JWT_SECRET_KEY: dev-secret-key-change-in-production
+      JWT_REFRESH_SECRET_KEY: dev-refresh-secret-key-change-in-production
+      JWT_ALGORITHM: HS256
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 15
+      JWT_REFRESH_TOKEN_EXPIRE_DAYS: 30
+      DEBUG: "true"
+    volumes:
+      - ./apps/api:/app
+    networks:
+      - chronotrack_net
+
+  web:
+    image: node:20-alpine
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+    volumes:
+      - ./apps/web:/app
+    command: sh -c "npm install && npm run dev -- --host"
+    environment:
+      VITE_API_URL: http://localhost:8000
+    networks:
+      - chronotrack_net
+
+  bot:
+    build: ./apps/api
+    depends_on:
+      - api
+    environment:
+      DATABASE_URL: postgresql+asyncpg://chronotrack:chronotrack@db:5432/chronotrack
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN:-}
+      TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
+    command: python -m app.bot.main
+    profiles:
+      - bot
+    networks:
+      - chronotrack_net
+
+volumes:
+  pgdata:
+
+networks:
+  chronotrack_net:
+    driver: bridge
