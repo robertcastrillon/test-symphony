@@ -30,3 +30,4 @@ chronotrack_api.egg-info/dependency_links.txt
 chronotrack_api.egg-info/requires.txt
 chronotrack_api.egg-info/top_level.txt
 tests/test_auth.py
+tests/test_auth_service.py
