@@ -1,30 +1,37 @@
-## Agent Report — ENG-101: CPMA-01: Database models, schemas & project scaffolding
+## Quality Check Report — ENG-101: CPMA-01: Database models, schemas & project scaffolding
 
-**Mode:** Implementation
+NEXT_STATE: Ready to Deploy
+
 **Branch:** `eng-101`
 **PR:** https://github.com/robertcastrillon/test-symphony/pull/5
+**Routes to:** Ready to Deploy (no UI to validate — test evidence below)
 
-### What was implemented
-- `apps/api/app/routers/clients.py` — full CRUD router (GET/POST/GET/{id}/PUT/{id}/DELETE/{id}) at `/api/v1/clients`
-- `apps/api/app/routers/projects.py` — full CRUD + deactivate router (GET/POST/GET/{id}/PUT/{id}/PATCH/{id}/deactivate) at `/api/v1/projects`
-- Registered both routers in `apps/api/app/main.py`
-- `apps/api/tests/test_clients.py` — 7 integration tests: create, list, get, update, delete, 409 on active projects, 404 cross-user
-- `apps/api/tests/test_projects.py` — 9 integration tests: create with/without client, list with filters, deactivate, color update, 422 invalid color, 403 unauth, 404 cross-user
+### Test pyramid results
 
-### Files changed
-- apps/api/app/routers/clients.py (new)
-- apps/api/app/routers/projects.py (new)
-- apps/api/app/main.py (updated — routers registered)
-- apps/api/tests/test_clients.py (new)
-- apps/api/tests/test_projects.py (new)
+| Level | Check | Result |
+|-------|-------|--------|
+| 1 | Lint (ruff check + format) | PASS — all checks passed, 37 files unchanged |
+| 1 | Security (bandit) | PASS — no issues found |
+| 1 | Secrets detection | PASS — no hardcoded secrets found |
+| 2 | Unit tests | PASS — 29 passed in 11.57s |
+| 2 | Coverage | 87% (779 stmts, 98 missed) |
+| 3 | Integration tests | N/A — no integration test directory |
+| 4 | BDD scenarios | N/A — no BDD tests |
+| 5-6 | E2E + Smoke | N/A — non-UI ticket |
 
-### Quality results
-| Check | Result |
-|-------|--------|
-| Unit tests | 29 passed |
-| Coverage | 87.42% |
-| Lint | Clean (ruff) |
-| Security | No high/critical findings |
 
-### Next step
-Quality Check agent will run the full test pyramid and deploy locally.
+### QA sign-off (automated)
+
+This ticket contains no user-facing UI. All validation is automated:
+- Tests passing: 29/29
+- Coverage: 87%
+- No security findings (bandit clean)
+- No hardcoded secrets
+- Ruff lint + format: clean
+
+No human UI review needed. Ready to merge.
+
+
+### Issues found during QA
+
+None — all tests passed on first run. Deprecation warnings present from third-party libraries (passlib `crypt` module and python-jose `utcnow`) but these are upstream issues, not from this codebase.
