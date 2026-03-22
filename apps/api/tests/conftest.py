@@ -1,5 +1,4 @@
 import pytest_asyncio
-from app.core.config import settings
 from app.core.security import get_password_hash
 from app.db.database import Base
 from app.db.session import get_db
@@ -8,7 +7,7 @@ from app.models.user import User
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-TEST_DATABASE_URL = settings.DATABASE_URL
+TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
 
 @pytest_asyncio.fixture
