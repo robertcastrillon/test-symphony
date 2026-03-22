@@ -1,90 +1,53 @@
-import os
-
-import pytest_asyncio
+import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-# Override settings before importing the app
-os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite://")
-os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-tests-only")
-os.environ.setdefault("JWT_REFRESH_SECRET_KEY", "test-refresh-secret-key-for-tests-only")
+from app.core.security import get_password_hash
+from app.db.session import get_db
+from app.main import app
+from app.models.base import Base
+from app.models.user import User
+
+TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 
 
-@pytest_asyncio.fixture(scope="function")
-async def engine():
-    """Create a fresh in-memory SQLite engine per test function."""
-    from app.core.config import settings
+@pytest.fixture(scope="session")
+def anyio_backend():
+    return "asyncio"
 
-    settings.DATABASE_URL = "sqlite+aiosqlite://"
 
-    test_engine = create_async_engine(
-        "sqlite+aiosqlite://",
-        connect_args={"check_same_thread": False},
-    )
-
-    import app.models  # noqa: F401
-    from app.db.database import Base
-
-    async with test_engine.begin() as conn:
+@pytest.fixture
+async def db_session():
+    engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    yield test_engine
-
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-
-    await test_engine.dispose()
-
-
-@pytest_asyncio.fixture(scope="function")
-async def db_session(engine):
-    """Create a DB session for the test."""
-    test_session_local = async_sessionmaker(
-        bind=engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-        autocommit=False,
-        autoflush=False,
-    )
-    async with test_session_local() as session:
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with session_factory() as session:
         yield session
 
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+    await engine.dispose()
 
-@pytest_asyncio.fixture(scope="function")
-async def client(engine, db_session):
-    """Create an async test client with DB dependency override."""
-    from app.core.dependencies import get_db
-    from app.main import app
 
-    async def override_get_db():
-        yield db_session
-
-    app.dependency_overrides[get_db] = override_get_db
-
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-    ) as ac:
+@pytest.fixture
+async def client(db_session: AsyncSession):
+    app.dependency_overrides[get_db] = lambda: db_session
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-
     app.dependency_overrides.clear()
 
 
-@pytest_asyncio.fixture(scope="function")
-async def test_user(client: AsyncClient):
-    """Create a test user and return their credentials and tokens."""
-    payload = {
-        "email": "testuser@example.com",
-        "name": "Test User",
-        "password": "securepass123",
-    }
-    response = await client.post("/api/v1/auth/register", json=payload)
-    assert response.status_code == 201, f"Failed to create test user: {response.json()}"
-    tokens = response.json()
-    return {
-        "email": payload["email"],
-        "password": payload["password"],
-        "name": payload["name"],
-        "access_token": tokens["access_token"],
-        "refresh_token": tokens["refresh_token"],
-    }
+@pytest.fixture
+async def test_user(db_session: AsyncSession) -> User:
+    user = User(
+        email="test@example.com",
+        name="Test User",
+        hashed_password=get_password_hash("password123"),
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user

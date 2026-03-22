@@ -1,4 +1,7 @@
+import uuid
+
 from sqlalchemy import Boolean, ForeignKey, String, Text
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import BaseModel
@@ -7,13 +10,13 @@ from app.models.base import BaseModel
 class Project(BaseModel):
     __tablename__ = "projects"
 
-    user_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
     )
-    client_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True, index=True
+    client_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clients.id"), nullable=True
     )
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    color: Mapped[str] = mapped_column(String(7), default="#6366f1", nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    color: Mapped[str] = mapped_column(String(7), default="#6366f1")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)

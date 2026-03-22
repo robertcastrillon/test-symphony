@@ -1,3 +1,5 @@
+import uuid
+
 from jose import JWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,96 +10,63 @@ from app.core.security import (
     create_refresh_token,
     decode_refresh_token,
     get_password_hash,
-    hash_token,
     verify_password,
-    verify_token_hash,
 )
 from app.models.user import User
-from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse
+from app.schemas.auth import TokenResponse
 
 
 class AuthService:
-    def __init__(self, db: AsyncSession) -> None:
-        self.db = db
+    @staticmethod
+    async def register(
+        email: str, name: str, password: str, db: AsyncSession
+    ) -> TokenResponse:
+        result = await db.execute(select(User).where(User.email == email))
+        if result.scalar_one_or_none() is not None:
+            raise ConflictError(f"Email already registered: {email}")
 
-    async def register(self, data: RegisterRequest) -> TokenResponse:
-        # Check if email already exists
-        result = await self.db.execute(select(User).where(User.email == data.email))
-        existing = result.scalar_one_or_none()
-        if existing is not None:
-            raise ConflictError("A user with this email already exists")
-
-        hashed_pw = get_password_hash(data.password)
         user = User(
-            email=data.email,
-            name=data.name,
-            hashed_password=hashed_pw,
+            email=email,
+            name=name,
+            hashed_password=get_password_hash(password),
         )
-        self.db.add(user)
-        await self.db.flush()  # Get the user ID assigned
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
 
-        access_token = create_access_token(subject=user.id)
-        refresh_token = create_refresh_token(subject=user.id)
-        user.refresh_token_hash = hash_token(refresh_token)
-
-        await self.db.commit()
-        await self.db.refresh(user)
-
+        user_id = str(user.id)
         return TokenResponse(
-            access_token=access_token,
-            refresh_token=refresh_token,
+            access_token=create_access_token(user_id),
+            refresh_token=create_refresh_token(user_id),
         )
 
-    async def login(self, data: LoginRequest) -> TokenResponse:
-        result = await self.db.execute(select(User).where(User.email == data.email))
+    @staticmethod
+    async def login(email: str, password: str, db: AsyncSession) -> TokenResponse:
+        result = await db.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
-
-        if user is None or not verify_password(data.password, user.hashed_password):
+        if user is None or not verify_password(password, user.hashed_password):
             raise AuthenticationError("Invalid email or password")
 
-        access_token = create_access_token(subject=user.id)
-        refresh_token = create_refresh_token(subject=user.id)
-        user.refresh_token_hash = hash_token(refresh_token)
-
-        await self.db.commit()
-        await self.db.refresh(user)
-
+        user_id = str(user.id)
         return TokenResponse(
-            access_token=access_token,
-            refresh_token=refresh_token,
+            access_token=create_access_token(user_id),
+            refresh_token=create_refresh_token(user_id),
         )
 
-    async def refresh_token(self, refresh_token: str) -> TokenResponse:
+    @staticmethod
+    async def refresh_token(refresh_token: str, db: AsyncSession) -> TokenResponse:
         try:
-            payload = decode_refresh_token(refresh_token)
-        except JWTError as exc:
-            raise AuthenticationError("Invalid or expired refresh token") from exc
+            user_id = decode_refresh_token(refresh_token)
+        except JWTError as e:
+            raise AuthenticationError("Invalid or expired refresh token") from e
 
-        user_id: str | None = payload.get("sub")
-        if user_id is None:
-            raise AuthenticationError("Invalid refresh token: missing subject")
-
-        result = await self.db.execute(select(User).where(User.id == user_id))
+        result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
         user = result.scalar_one_or_none()
-
         if user is None:
             raise AuthenticationError("User not found")
 
-        if user.refresh_token_hash is None:
-            raise AuthenticationError("No refresh token stored for this user")
-
-        if not verify_token_hash(refresh_token, user.refresh_token_hash):
-            raise AuthenticationError("Refresh token mismatch or already used")
-
-        # Issue new token pair (token rotation)
-        new_access_token = create_access_token(subject=user.id)
-        new_refresh_token = create_refresh_token(subject=user.id)
-        user.refresh_token_hash = hash_token(new_refresh_token)
-
-        await self.db.commit()
-        await self.db.refresh(user)
-
+        uid = str(user.id)
         return TokenResponse(
-            access_token=new_access_token,
-            refresh_token=new_refresh_token,
+            access_token=create_access_token(uid),
+            refresh_token=create_refresh_token(uid),
         )
