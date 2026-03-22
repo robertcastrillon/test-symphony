@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: chronotrack
+      POSTGRES_PASSWORD: chronotrack
+      POSTGRES_DB: chronotrack
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chronotrack"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./apps/api
+    ports:
+      - "8000:8000"
+    environment:
+      CHRONOTRACK_DATABASE_URL: postgresql+asyncpg://chronotrack:chronotrack@db:5432/chronotrack
+      CHRONOTRACK_DEBUG: "true"
+      CHRONOTRACK_JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-secret-change-in-production}
+      CHRONOTRACK_JWT_REFRESH_SECRET_KEY: ${JWT_REFRESH_SECRET_KEY:-dev-refresh-secret-change-in-production}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./apps/api:/app
+
+  web:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host"
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:8000
+    depends_on:
+      - api
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+
+  bot:
+    build:
+      context: ./apps/api
+    command: python -m app.bot
+    environment:
+      CHRONOTRACK_DATABASE_URL: postgresql+asyncpg://chronotrack:chronotrack@db:5432/chronotrack
+      CHRONOTRACK_JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-secret-change-in-production}
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - bot
+
+volumes:
+  pgdata:
