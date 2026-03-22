@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  api-test:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:///./test.db
+      JWT_SECRET_KEY: test-secret-key
+      JWT_REFRESH_SECRET_KEY: test-refresh-secret-key
+      JWT_ALGORITHM: HS256
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 15
+      JWT_REFRESH_TOKEN_EXPIRE_DAYS: 30
+    command: >
+      sh -c "pip install -e '.[dev]' &&
+             pytest --cov=app --cov-report=term-missing --cov-fail-under=80 -v"
+    volumes:
+      - ./apps/api:/app
