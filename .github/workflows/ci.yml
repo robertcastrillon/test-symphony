@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff bandit
+
+      - name: Run ruff
+        run: ruff check apps/api/
+
+      - name: Run bandit
+        run: bandit -r apps/api/app/ -ll
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: chronotrack
+          POSTGRES_PASSWORD: chronotrack
+          POSTGRES_DB: chronotrack_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run Alembic migrations
+        working-directory: ./apps/api
+        env:
+          DATABASE_URL: postgresql+asyncpg://chronotrack:chronotrack@localhost:5432/chronotrack_test
+          SECRET_KEY: test-secret-key
+          ALGORITHM: HS256
+          ACCESS_TOKEN_EXPIRE_MINUTES: 30
+          REFRESH_TOKEN_EXPIRE_DAYS: 7
+          APP_ENV: test
+          DEBUG: false
+          CORS_ORIGINS: http://localhost:5173
+        run: alembic upgrade head
+
+      - name: Run tests with coverage
+        working-directory: ./apps/api
+        env:
+          DATABASE_URL: postgresql+asyncpg://chronotrack:chronotrack@localhost:5432/chronotrack_test
+          SECRET_KEY: test-secret-key
+          ALGORITHM: HS256
+          ACCESS_TOKEN_EXPIRE_MINUTES: 30
+          REFRESH_TOKEN_EXPIRE_DAYS: 7
+          APP_ENV: test
+          DEBUG: false
+          CORS_ORIGINS: http://localhost:5173
+        run: |
+          pytest tests/ \
+            --cov=app \
+            --cov-report=term-missing \
+            --cov-fail-under=80 \
+            -v
