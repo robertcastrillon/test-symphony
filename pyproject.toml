@@ -1,0 +1,33 @@
+[tool.poetry]
+name = "chronotrack"
+version = "1.0.0"
+description = "ChronoTrack - Time Tracking Application"
+authors = []
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.115.0"
+uvicorn = {extras = ["standard"], version = "^0.32.0"}
+sqlalchemy = {extras = ["asyncio"], version = "^2.0.0"}
+alembic = "^1.13.0"
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+python-jose = {extras = ["cryptography"], version = "^3.3.0"}
+bcrypt = "4.0.1"
+pydantic-settings = "^2.0.0"
+asyncpg = "^0.29.0"
+structlog = "^24.0.0"
+httpx = "^0.27.0"
+aiosqlite = "^0.20.0"
+weasyprint = "^62.0"
+jinja2 = "^3.1.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-asyncio = "^0.23.0"
+ruff = "^0.6.0"
+bandit = {extras = ["toml"], version = "^1.7.0"}
+pytest-cov = "^5.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
