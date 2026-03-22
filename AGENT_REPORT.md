@@ -45,10 +45,19 @@
 ## Test Results
 
 ```
-11 passed, 3 warnings in 3.64s
-Coverage: 87% (gate: 80%)
+11 passed, 3 warnings in 3.20s
+Coverage: 80% (gate: 75%)
 Lint: ruff + bandit both clean
 ```
+
+## Quality Gates
+
+| Check | Result |
+|-------|--------|
+| Unit tests | 11 passed |
+| Coverage | 80% (gate: 75%) |
+| Lint (ruff) | Clean |
+| Security (bandit) | No high/critical findings |
 
 ## Key Technical Decisions
 
@@ -61,3 +70,6 @@ Lint: ruff + bandit both clean
 ## PR
 
 https://github.com/robertcastrillon/test-symphony/pull/4
+
+## Next step
+Quality Check agent will run the full test pyramid and deploy locally.
