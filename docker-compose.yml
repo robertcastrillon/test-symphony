@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: chronotrack
+      POSTGRES_PASSWORD: chronotrack
+      POSTGRES_DB: chronotrack
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://chronotrack:chronotrack@db:5432/chronotrack
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
